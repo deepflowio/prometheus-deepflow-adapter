@@ -3,8 +3,8 @@ package app
 import (
 	"errors"
 	"github.com/spf13/cobra"
-	"prometheus_adapter/cmd/app/options"
-	"prometheus_adapter/pkg/plugins"
+	"prometheus-deepflow-adapter/cmd/app/options"
+	"prometheus-deepflow-adapter/pkg/plugins"
 )
 
 func NewAdapterCommand() *cobra.Command {

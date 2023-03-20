@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"prometheus_adapter/pkg/config"
+	"prometheus-deepflow-adapter/pkg/config"
 )
 
 type engine struct {

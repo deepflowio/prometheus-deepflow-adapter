@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	"prometheus_adapter/cmd/app"
+	"prometheus-deepflow-adapter/cmd/app"
 )
 
 func main() {

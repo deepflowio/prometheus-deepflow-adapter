@@ -7,8 +7,8 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"log"
 	"net/http"
-	"prometheus_adapter/pkg/config"
-	"prometheus_adapter/pkg/service"
+	"prometheus-deepflow-adapter/pkg/config"
+	"prometheus-deepflow-adapter/pkg/service"
 )
 
 type etcdClient struct {

@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
-	"prometheus_adapter/pkg/config"
+	"prometheus-deepflow-adapter/pkg/config"
 )
 
 func (s *engine) injectRouterGroup(router *gin.RouterGroup) {

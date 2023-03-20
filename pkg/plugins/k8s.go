@@ -10,8 +10,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"prometheus_adapter/pkg/config"
-	"prometheus_adapter/pkg/service"
+	"prometheus-deepflow-adapter/pkg/config"
+	"prometheus-deepflow-adapter/pkg/service"
 	"time"
 )
 
