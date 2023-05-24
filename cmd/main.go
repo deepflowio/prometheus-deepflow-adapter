@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	command := app.NewAdapterCommand()
+	command := app.NewAdapter()
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
 	}

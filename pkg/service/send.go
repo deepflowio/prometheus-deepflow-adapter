@@ -1,23 +1,23 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"prometheus-deepflow-adapter/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
 
 var (
 	httpclient = http.DefaultClient
-	ctx        = context.TODO()
 )
 
-func ReceiveHandler(remoteUrl string) func(c *gin.Context) {
+func sendSamples(remoteUrl string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		req, err := http.NewRequest("POST", remoteUrl, c.Request.Body)
 		if err != nil {
+			log.Logger.Error("msg", "build http request error", "err", err)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
@@ -26,17 +26,18 @@ func ReceiveHandler(remoteUrl string) func(c *gin.Context) {
 		req.Header.Set("Content-Encoding", "snappy")
 		req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
-		resp, err := httpclient.Do(req.WithContext(ctx))
+		resp, err := httpclient.Do(req.WithContext(c.Request.Context()))
 		if err != nil {
+			log.Logger.Error("msg", "remote write error", "err", err)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-
 		defer resp.Body.Close()
 
-		if resp.StatusCode/100 != 2 {
+		if resp.StatusCode != http.StatusOK {
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
+				log.Logger.Error("msg", "read remote write response error", "err", err)
 				c.AbortWithError(resp.StatusCode, err)
 				return
 			}
@@ -45,6 +46,6 @@ func ReceiveHandler(remoteUrl string) func(c *gin.Context) {
 			return
 		}
 
+		log.Logger.Debug("msg", fmt.Sprintf("remote write to %s success", remoteUrl))
 	}
-
 }

@@ -1,29 +1,21 @@
 package options
 
-import cliflag "k8s.io/component-base/cli/flag"
+import (
+	"prometheus-deepflow-adapter/pkg/config"
 
-type AdapterOptions struct {
-	Etcd          bool
-	EtcdEndpoints []string
-	K8S           bool
-	Kubeconfig    string
+	cliflag "k8s.io/component-base/cli/flag"
+)
+
+type Options struct {
 }
 
-func NewAdapterOptions() *AdapterOptions {
-	return &AdapterOptions{
-		Etcd: false,
-		K8S:  false,
-	}
+func NewOptions() *Options {
+	return &Options{}
 }
 
-func (a *AdapterOptions) Flags() cliflag.NamedFlagSets {
-	fss := cliflag.NamedFlagSets{}
-
-	gfs := fss.FlagSet("generic")
-	gfs.BoolVar(&a.Etcd, "etcd", a.Etcd, "Enable Etcd Elections")
-	gfs.BoolVar(&a.K8S, "k8s", a.K8S, "Enable Kubernetes Elections")
-	gfs.StringArrayVar(&a.EtcdEndpoints, "endpoints", a.EtcdEndpoints, "Etcd Endpoints")
-	gfs.StringVar(&a.Kubeconfig, "kubeconfig", a.Kubeconfig, "Kubeconfig file")
-
-	return fss
+func (a *Options) Flags(config config.Configuration) cliflag.NamedFlagSets {
+	fs := cliflag.NamedFlagSets{}
+	gfs := fs.FlagSet("generic")
+	gfs.AddFlagSet(config.ToOptions())
+	return fs
 }

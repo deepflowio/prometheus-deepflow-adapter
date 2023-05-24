@@ -1,0 +1,5 @@
+FROM debian:buster
+
+RUN apt install -y ca-certificates curl wget
+COPY ./ /prometheus-deepflow-adapter
+ENTRYPOINT ["/prometheus-deepflow-adapter/prometheus-deepflow-adapter"]
