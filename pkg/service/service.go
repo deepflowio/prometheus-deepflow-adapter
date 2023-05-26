@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -25,7 +26,7 @@ type Service struct {
 	keepAlive         *time.Ticker
 }
 
-func NewService(config *config.Config) *http.Server {
+func NewService(config *config.Config) (*http.Server, error) {
 	s := &Service{
 		engine:            gin.Default(),
 		conf:              config,
@@ -40,6 +41,9 @@ func NewService(config *config.Config) *http.Server {
 		// TODO: start tracing & inject span to context
 		ctx := context.Background()
 		s.elector = election.StartElection(config)
+		if s.elector == nil {
+			return nil, errors.New("elector is nil")
+		}
 		s.keepAlive = time.NewTicker(s.elector.HeartBeat())
 		s.retryLock = time.NewTicker(s.elector.RetryPeriod())
 		if s.elector.IsLeader() {
@@ -63,7 +67,7 @@ func NewService(config *config.Config) *http.Server {
 			log.Logger.Error("msg", "cleanup failed", "err", err)
 		}
 	})
-	return svc
+	return svc, nil
 }
 
 func (s *Service) injectMiddlewares() {

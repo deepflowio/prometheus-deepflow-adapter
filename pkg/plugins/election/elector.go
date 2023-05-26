@@ -65,7 +65,8 @@ func StartElection(conf *config.Config) Election {
 
 	err = elector.StartLeading(context.Background())
 	if err != nil {
-		log.Logger.Info("msg", "try get leader lock failed, server is not leader", "elector", conf.Elector, "err", err)
+		log.Logger.Error("msg", "try get leader lock failed, server is not leader", "elector", conf.Elector, "err", err)
+		return nil
 	}
 	return elector
 }
