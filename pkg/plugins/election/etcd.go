@@ -75,14 +75,23 @@ func (e *etcdElector) IsLeader() bool {
 	return e.isLeader.Load()
 }
 
+func (e *etcdElector) RetryPeriod() time.Duration {
+	return e.config.RetryPeriod
+}
+
+func (e *etcdElector) HeartBeat() time.Duration {
+	return e.config.HeartBeat
+}
+
 func (e *etcdElector) KeepAlive(ctx context.Context) {
 	// nothing, etcd concurrency will keep alive
 }
 
 type EtcdConfig struct {
-	Endpoints []string      `mapstructure:"endpoints"`
-	HeartBeat time.Duration `mapstructure:"heartbeat"`
-	Key       string        `mapstructure:"key"`
+	Key         string        `mapstructure:"key"`
+	Endpoints   []string      `mapstructure:"endpoints"`
+	HeartBeat   time.Duration `mapstructure:"heartbeat"`
+	RetryPeriod time.Duration `mapstructure:"retry-period"`
 }
 
 func NewEtcdConfig() config.Configuration {
@@ -93,7 +102,8 @@ func (e *EtcdConfig) ToOptions() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("etcd", pflag.ContinueOnError)
 	fs.StringSliceVar(&e.Endpoints, "endpoints", nil, "etcd endpoints")
 	fs.StringVar(&e.Key, "key", "/p8s-df-adapter-lock", "etcd election keys")
-	fs.DurationVar(&e.HeartBeat, "etcd-heartbeat", 15*time.Second, "lock heartbeat interval")
+	fs.DurationVar(&e.HeartBeat, "heartbeat", 15*time.Second, "lock heartbeat interval")
+	fs.DurationVar(&e.RetryPeriod, "retry-period", 10*time.Second, "lock retry interval")
 	fs.VisitAll(func(f *pflag.Flag) {
 		f.Name = fmt.Sprintf("%s-%s", "etcd", f.Name)
 	})

@@ -12,14 +12,13 @@ type Configuration interface {
 }
 
 type Config struct {
-	ElectionEnabled   bool          `mapstructure:"election-enabled"`
-	TraceEnabled      bool          `mapstructure:"trace-enabled"`
-	EventEnabled      bool          `mapstructure:"event-enabled"`
-	ProfileEnabled    bool          `mapstructure:"profile-enabled"`
-	PrometheusTimeout time.Duration `mapstructure:"prometheus-timeout"`
+	ElectionEnabled          bool          `mapstructure:"election-enabled"`
+	TraceEnabled             bool          `mapstructure:"trace-enabled"`
+	EventEnabled             bool          `mapstructure:"event-enabled"`
+	ProfileEnabled           bool          `mapstructure:"profile-enabled"`
+	PrometheusScrapeInterval time.Duration `mapstructure:"prometheus-scrape-interval"`
 
-	Mode     string `mapstructure:"mode"`
-	Port     string `mapstructure:"port"`
+	Port     int    `mapstructure:"port"`
 	LogLevel string `mapstructure:"log-level"`
 
 	Elector Elector `mapstructure:"elector"`
@@ -37,8 +36,7 @@ type Config struct {
 
 func NewConfig() *Config {
 	cfg := &Config{
-		Mode:              "release",
-		Port:              "8080",
+		Port:              80,
 		LogLevel:          "info",
 		RemoteWriteConfig: RemoteWriteConfig{},
 		TraceConfig:       TraceConfig{},
@@ -50,16 +48,15 @@ func NewConfig() *Config {
 func (c *Config) ToOptions() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("", pflag.ExitOnError)
 
-	fs.BoolVar(&c.ElectionEnabled, "election-enabled", false, "enable/disable election")
+	fs.BoolVar(&c.ElectionEnabled, "election-enabled", true, "enable/disable election")
 	fs.BoolVar(&c.TraceEnabled, "trace-enabled", false, "enable/disable distributed tracing")
 	fs.BoolVar(&c.EventEnabled, "event-enabled", false, "enable/disable tracing event")
 	fs.BoolVar(&c.ProfileEnabled, "profile-enabled", false, "enable/disable go profile")
-	fs.DurationVar(&c.PrometheusTimeout, "receive-prometheus-timeout", 10*time.Second, "timeout calculation for receive promtheus data")
+	fs.DurationVar(&c.PrometheusScrapeInterval, "prometheus-scrape-interval", 10*time.Second, "timeout calculation for receive promtheus data")
 
-	fs.StringVarP(&c.Mode, "mode", "m", "release", "run mode, value: debug/test/release, default: release")
-	fs.StringVarP(&c.Port, "port", "a", "8080", "http listen port")
+	fs.IntVarP(&c.Port, "port", "p", 80, "http listen port")
 	fs.StringVar(&c.LogLevel, "log-level", "info", "log level for adapter")
-	fs.StringVar((*string)(&c.Elector), "elector", "", "choose one election component")
+	fs.StringVar((*string)(&c.Elector), "elector", "k8s", "choose one election component")
 
 	fs.AddFlagSet(c.RemoteWriteConfig.ToOptions())
 	fs.AddFlagSet(c.TraceConfig.ToOptions())
@@ -82,17 +79,17 @@ type TLSConfig struct {
 }
 
 type RemoteWriteConfig struct {
-	Url       string    `mapstructure:"url"`
-	Insecure  bool      `mapstructure:"insecure"`
-	Timeout   bool      `mapstructure:"timeout"`
-	TLSConfig TLSConfig `mapstructure:"tls-config"`
+	Url       string        `mapstructure:"url"`
+	Insecure  bool          `mapstructure:"insecure"`
+	Timeout   time.Duration `mapstructure:"timeout"`
+	TLSConfig TLSConfig     `mapstructure:"tls-config"`
 }
 
 func (r *RemoteWriteConfig) ToOptions() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("remote-write", pflag.ContinueOnError)
 	fs.StringVar(&r.Url, "url", "", "remote write url")
 	fs.BoolVar(&r.Insecure, "insecure", false, "insecure config for remote write")
-	fs.BoolVar(&r.Timeout, "timeout", false, "remote write timeout")
+	fs.DurationVar(&r.Timeout, "timeout", 10*time.Second, "remote write timeout")
 	fs.StringVar(&r.TLSConfig.CAFile, "ca-file", "", "remote write https ca")
 	fs.StringVar(&r.TLSConfig.CertFile, "cert-file", "", "remote write https cert file")
 	fs.StringVar(&r.TLSConfig.KeyFile, "key-file", "", "remote write https key file")
@@ -106,9 +103,9 @@ func (r *RemoteWriteConfig) ToOptions() *pflag.FlagSet {
 type TraceConfig struct {
 	ClientType ClientType `mapstructure:"client-type"`
 
-	Endpoint  string `mapstructure:"endpoint"`
-	Insecure  bool   `mapstructure:"insecure"`
-	Timeout   bool   `mapstructure:"timeout"`
+	Endpoint  string        `mapstructure:"endpoint"`
+	Insecure  bool          `mapstructure:"insecure"`
+	Timeout   time.Duration `mapstructure:"timeout"`
 	TLSConfig TLSConfig
 }
 
@@ -117,7 +114,7 @@ func (t *TraceConfig) ToOptions() *pflag.FlagSet {
 	fs.StringVar((*string)(&t.ClientType), "client-type", "http", "trace client type, http/grpc, default: http")
 	fs.StringVar(&t.Endpoint, "endpoint", "", "trace backend endpoint")
 	fs.BoolVar(&t.Insecure, "insecure", false, "trace endpoint insecure")
-	fs.BoolVar(&t.Timeout, "timeout", false, "trace timeout")
+	fs.DurationVar(&t.Timeout, "timeout", 10*time.Second, "trace timeout")
 	fs.StringVar(&t.TLSConfig.CAFile, "ca-file", "", "trace https ca file")
 	fs.StringVar(&t.TLSConfig.CertFile, "cert-file", "", "trace https cert file")
 	fs.StringVar(&t.TLSConfig.KeyFile, "key-file", "", "trace https key file")

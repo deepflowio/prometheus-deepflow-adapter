@@ -1,0 +1,35 @@
+port: 80
+log-level: info
+election-enabled: true
+elector: k8s
+trace-enabled: false
+event-enabled: false
+profile-enabled: false
+prometheus-scrape-interval: 1m # it should greater than or equals `scrape_interval` in prometheus server
+
+remote-write:
+  url: deepflow-agent.deepflow:38086
+  insecure: true
+  timeout: 10
+  tls-config:
+    ca-file:
+    cert-file:
+    key-file:
+    server-name:
+
+trace:
+  client-type: http
+  endpoint: otel-collector.open-telemetry:4317
+  insecure: true
+  timeout: 10
+  tls-config:
+    ca-file:
+    cert-file:
+    key-file:
+    server-name:
+
+profile:
+  rate: 10
+  types:
+  - cpu
+  - memory

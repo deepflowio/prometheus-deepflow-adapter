@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"prometheus-deepflow-adapter/pkg/config"
 	"prometheus-deepflow-adapter/pkg/log"
+	"time"
 )
 
 /*
@@ -35,6 +36,8 @@ type Election interface {
 	Release(context.Context) error
 	IsLeader() bool
 	KeepAlive(ctx context.Context)
+	RetryPeriod() time.Duration
+	HeartBeat() time.Duration
 }
 
 type electorConstructor func(config.Configuration) (Election, error)

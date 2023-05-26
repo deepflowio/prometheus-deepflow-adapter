@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/spf13/cobra"
 
@@ -42,11 +44,18 @@ func NewAdapter() *cobra.Command {
 	fs.Parse(os.Args[1:])
 
 	/*
-		example config: k8s-kube-config
+		example config arg: k8s-kube-config
 		parse in commandline: --k8s-kube-config
 		parse in env: k8s.kube-config
-		finally: env overwrite commandline args
+		eventually: env
 	*/
+
+	// priority: env > command-line args > config file
+
+	if err := k.Load(file.Provider(s.Conf), yaml.Parser()); err != nil {
+		log.Fatal(err)
+	}
+
 	if err := k.Load(posflag.Provider(fs, ".", k), nil); err != nil {
 		log.Fatal(err)
 	}
@@ -57,6 +66,7 @@ func NewAdapter() *cobra.Command {
 		log.Fatal(err)
 	}
 
+	// whatever gets in `k`, it will unmarshals to &conf
 	if err := k.UnmarshalWithConf("", &conf, koanf.UnmarshalConf{Tag: "mapstructure"}); err != nil {
 		log.Fatal(err)
 	}

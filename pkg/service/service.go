@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -18,40 +19,66 @@ type Service struct {
 	engine  *gin.Engine
 	elector election.Election
 
-	lastReceiveTime           int64
-	stopLockerLivenessChecker chan bool
-	stopLivenessCheck         *atomic.Bool
+	lastReceiveTime   int64
+	stopLivenessCheck *atomic.Bool
+	retryLock         *time.Ticker
+	keepAlive         *time.Ticker
 }
 
 func NewService(config *config.Config) *http.Server {
-	gin.SetMode(config.Mode)
 	s := &Service{
-		engine:                    gin.Default(),
-		conf:                      config,
-		lastReceiveTime:           time.Now().UnixNano(),
-		stopLockerLivenessChecker: make(chan bool),
-		stopLivenessCheck:         &atomic.Bool{},
+		engine:            gin.Default(),
+		conf:              config,
+		lastReceiveTime:   time.Now().UnixNano(),
+		stopLivenessCheck: &atomic.Bool{},
 	}
+	s.injectMiddlewares()
 	s.injectRouters()
 
 	if config.ElectionEnabled {
 		log.Logger.Info("msg", "election enabled, start server election")
-		// TODO: can start tracing & inject context
+		// TODO: start tracing & inject span to context
 		ctx := context.Background()
-		elector := election.StartElection(config)
-		if elector.IsLeader() {
+		s.elector = election.StartElection(config)
+		s.keepAlive = time.NewTicker(s.elector.HeartBeat())
+		s.retryLock = time.NewTicker(s.elector.RetryPeriod())
+		if s.elector.IsLeader() {
 			log.Logger.Debug("msg", "current server is leader now, start remote write")
+			go s.lockerKeepAlive(ctx)
+		} else {
+			log.Logger.Debug("msg", "current server is not leader, start retry for leader release")
+			go s.lockerRetry(ctx)
 		}
-		go elector.KeepAlive(ctx)
-		go s.lockerLivenessCheck(ctx)
 	}
 
-	if s.conf.PrometheusTimeout > 0 {
+	if s.conf.PrometheusScrapeInterval > 0 {
 		ctx := context.Background()
 		go s.prometheusLivenessCheck(ctx)
 	}
+	svc := &http.Server{Addr: fmt.Sprintf(":%d", config.Port), Handler: s.engine}
+	svc.RegisterOnShutdown(func() {
+		ctx := context.Background()
+		err := s.Cleanup(ctx)
+		if err != nil {
+			log.Logger.Error("msg", "cleanup failed", "err", err)
+		}
+	})
+	return svc
+}
 
-	return &http.Server{Addr: config.Port, Handler: s.engine}
+func (s *Service) injectMiddlewares() {
+	s.engine.Use(gin.LoggerWithWriter(log.Logger))
+	s.engine.Use(gin.LoggerWithFormatter(func(params gin.LogFormatterParams) string {
+		return fmt.Sprintf("%s -\"%s %s %s %d %s \"%s\" %s\"",
+			params.ClientIP,
+			params.Method,
+			params.Path,
+			params.Request.Proto,
+			params.StatusCode,
+			params.Latency,
+			params.Request.UserAgent(),
+			params.ErrorMessage)
+	}))
 }
 
 func (s *Service) injectRouters() {
@@ -70,8 +97,12 @@ func (s *Service) injectRouters() {
 		sendSamples(s.conf.RemoteWriteConfig.Url))
 }
 
-func (s *Service) Cleanup() error {
-	// TODO: add resource cleanup
+func (s *Service) Cleanup(ctx context.Context) error {
 	log.Logger.Info("msg", "service cleanup start")
+	err := s.elector.Release(ctx)
+	if err != nil {
+		return err
+	}
+	log.Logger.Info("msg", "service cleanup complete")
 	return nil
 }

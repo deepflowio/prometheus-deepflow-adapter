@@ -17,8 +17,6 @@ type redisElector struct {
 	config   *RedisConfig
 	client   *redis.Client
 	isLeader *atomic.Bool
-
-	done context.CancelFunc
 }
 
 func NewRedisElector(config config.Configuration) (Election, error) {
@@ -35,7 +33,7 @@ func NewRedisElector(config config.Configuration) (Election, error) {
 }
 
 func (r *redisElector) trySet(ctx context.Context) error {
-	res := r.client.SetNX(ctx, r.config.Key, r.uuid, r.config.HeartBeat*time.Second)
+	res := r.client.SetNX(ctx, r.config.Key, r.uuid, r.config.HeartBeat)
 	return res.Err()
 }
 
@@ -55,7 +53,6 @@ func (r *redisElector) Release(ctx context.Context) error {
 		}
 	}
 	r.isLeader.Store(false)
-	r.done()
 	return nil
 }
 
@@ -63,28 +60,25 @@ func (r *redisElector) IsLeader() bool {
 	return r.isLeader.Load()
 }
 
+func (r *redisElector) RetryPeriod() time.Duration {
+	return r.config.RetryPeriod
+}
+
+func (r *redisElector) HeartBeat() time.Duration {
+	return r.config.HeartBeat
+}
+
 func (r *redisElector) KeepAlive(ctx context.Context) {
-	if !r.IsLeader() {
-		return
-	}
-	ctx, r.done = context.WithCancel(ctx)
-	ticker := time.NewTicker(r.config.HeartBeat * time.Second)
-	for range ticker.C {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			r.client.Expire(ctx, r.config.Key, r.config.HeartBeat*time.Second)
-			r.isLeader.Store(true)
-		}
-	}
+	r.client.Expire(ctx, r.config.Key, r.config.HeartBeat)
+	r.isLeader.Store(true)
 }
 
 type RedisConfig struct {
-	Addr      string        `mapstructure:"addr"`
-	Passwd    string        `mapstructure:"passwd"`
-	Key       string        `mapstructure:"key"`
-	HeartBeat time.Duration `mapstructure:"heartbeat"`
+	Addr        string        `mapstructure:"addr"`
+	Passwd      string        `mapstructure:"passwd"`
+	Key         string        `mapstructure:"key"`
+	HeartBeat   time.Duration `mapstructure:"heartbeat"`
+	RetryPeriod time.Duration `mapstructure:"retry-period"`
 }
 
 func NewRedisConfig() config.Configuration {
@@ -97,6 +91,7 @@ func (r *RedisConfig) ToOptions() *pflag.FlagSet {
 	fs.StringVar(&r.Passwd, "passwd", "", "redis password")
 	fs.StringVar(&r.Key, "key", "p8s-df-adapter-lock", "redis lock leader key")
 	fs.DurationVar(&r.HeartBeat, "heartbeat", 15*time.Second, "lock heartbeat interval")
+	fs.DurationVar(&r.RetryPeriod, "retry-period", 10*time.Second, "lock retry interval")
 	fs.VisitAll(func(f *pflag.Flag) {
 		f.Name = fmt.Sprintf("%s-%s", "redis", f.Name)
 	})
