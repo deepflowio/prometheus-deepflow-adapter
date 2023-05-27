@@ -32,12 +32,21 @@ func NewRedisElector(config config.Configuration) (Election, error) {
 	}, nil
 }
 
+func (r *redisElector) ping(ctx context.Context) error {
+	res := r.client.Ping(ctx)
+	return res.Err()
+}
+
 func (r *redisElector) trySet(ctx context.Context) error {
 	res := r.client.SetNX(ctx, r.config.Key, r.uuid, r.config.HeartBeat)
 	return res.Err()
 }
 
 func (r *redisElector) StartLeading(ctx context.Context) error {
+	if err := r.ping(ctx); err != nil {
+		return err
+	}
+
 	if err := r.trySet(ctx); err != nil {
 		return err
 	}

@@ -76,7 +76,10 @@ func NewAdapter() *cobra.Command {
 
 func run(ctx context.Context, c *config.Config) error {
 	plog.Logger = plog.NewLogger(c.LogLevel)
-	httpService := service.NewService(c)
+	httpService, err := service.NewService(c)
+	if err != nil {
+		return err
+	}
 	go func() {
 		plog.Logger.Info("msg", "http server start up")
 		if err := httpService.ListenAndServe(); err != nil && err != http.ErrServerClosed {
