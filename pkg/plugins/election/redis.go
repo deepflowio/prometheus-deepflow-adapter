@@ -43,9 +43,8 @@ func (r *redisElector) trySet(ctx context.Context) error {
 }
 
 func (r *redisElector) StartLeading(ctx context.Context) error {
-	er := r.ping(ctx)
-	if er != nil {
-		return er
+	if err := r.ping(ctx); err != nil {
+		return err
 	}
 
 	if err := r.trySet(ctx); err != nil {
