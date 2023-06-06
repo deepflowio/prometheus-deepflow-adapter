@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -41,8 +40,9 @@ func NewService(config *config.Config) (*http.Server, error) {
 		// TODO: start tracing & inject span to context
 		ctx := context.Background()
 		s.elector = election.StartElection(config)
+		//current elector is nil,for a variety of reasons, so there should be a new election.
 		if s.elector == nil {
-			return nil, errors.New("elector is nil")
+			go s.lockerRetry(ctx)
 		}
 		s.keepAlive = time.NewTicker(s.elector.HeartBeat())
 		s.retryLock = time.NewTicker(s.elector.RetryPeriod())
